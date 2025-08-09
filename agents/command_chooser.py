@@ -36,15 +36,12 @@ def get_raw_command(query: str, chat_state: ChatState):
         - /details <query>: get details about the retrieved documents
         - /quotes <query>: get quotes from the retrieved documents
 
-        ## RESEARCH COMMANDS
-        - /research <query>: do "classic" research - ingest websites into a collection, write a report. If the query seems to be novel or the user specifically asks for research or a web search, use this one. This will ingest the results in a collection. If the user uses the keywords "deeper", "combine", "auto", or "iterate", suggest the specific commands starting with "/research" below that apply. If they specify a number of times to run a deeper or combine search, append the integer to "/research auto". If their query seems like it would be suited to one of these options, suggest it as the new query.
-        - /research deeper: expand report and KB to cover 2x more sites as current report
-        - /research deeper <int>: perform the above <int> times
-        - /research more: keep original query, but fetch more websites and create new report version
-        - /research combine: combine reports to get a report that takes more sources into account
-        - /research auto <int>: performs <int> iterations of "more" and "combine" (note that this first performs research more, then research combine, for each iteration)
-        - /research iterate <int>: fetch more websites and iterate on the previous report <int> times. The number of times is optional. If the user mentions that the new report seems less relevant or somehow inferior to the previous one, ask if they would like to use "more" and "combine" instead to ensure that each iteration retains the quality information and sources from the original report. In general, unless the user specifies "iterate" mode, use "more" and "combine" when they want to improve on the original report.
-        - /research heatseek <query>: do "heatseek" research - find websites that contain the answer and select one specific site that has exactly what is requested. This command does not use the collection. If the user knows about heatseek, they might specify it by name and specify the number of "rounds" of heatseek research, in which case you should output "/research <query> <int>" with "int" being the number. If you think heatseek mode seems appropriate, ask them if they would like to run multiple rounds.
+        ## MAIN RESEARCH COMMANDS
+        - /research <query>: do "classic" research - ingest websites into a new collection, write a report. If the query seems to be novel and the user specifically asks for research with a fairly in-depth response, use this one. This will ingest the results into a new collection. Use /research ONLY when the query requires an in-depth report. Otherwise for more typical questions, use /research heatseek.
+        - /research iterate <int>: fetch more websites and iterate on the previous report <int> times. The number of times is optional. If the user wants you to continue researching the topic, or if the user uses the keyword "iterate", use this command. If they specify a number of times to run a deeper or combine search, append the integer to the query.
+        - /research heatseek <query>: do "heatseek" research - find websites that contain the answer and select one specific site that has exactly what is requested. This command does not use the selected collection. If the user knows about heatseek, they might specify it by name and specify the number of "rounds" of heatseek research, in which case you should output "/research <query> <int>" with "int" being the number.
+
+        ## ADDITIONAL RESEARCH COMMANDS
         - /research set-query <query>: change the research query. If the user asks a new question that is similar to the previous question, suggest this command.
         - /research set-report-type <new report type>: instructions for the desired report format. Some examples are:
             Detailed Report: A comprehensive overview that includes in-depth information and analysis.
@@ -56,11 +53,16 @@ def get_raw_command(query: str, chat_state: ChatState):
         - /research clear: remove all reports but keep ingested content
         - /research startover: perform /research clear, then rewrite the initial report
 
+        IMPORTANT: There are two kinds of research, classic and heatseek. If the user is looking for in-depth research on their query use /research. If they are looking for a targeted, specific answer to a relatively narrow question, use /research heatseek.
+
         ## OTHER COMMANDS
         - /web <your query>: perform web searches and generate a report without ingesting into a collection
-        - /chat <your query>: regular chat, without retrieving docs or websites (If the user query does not seem to require research or access to the collections to answer, use this)
+        - /chat <your query>: regular chat, without retrieving docs or websites (Use this only when you can answer fully based on your internal knowledge or conversation history.)
         - /export: export your data
         - /help <your query>: get help with using DocDocGo
+
+        ## GUIDELINE REGARDING COMMANDS
+        - Only use /chat if you do not need to fetch external information to fully answer. Otherwise use /research for in-depth, new research, /kb for queries about the current collection, and /research heatseek for typical queries.
 
         # THE CURRENT COLLECTION
         Here is a report on the contents of the current collection so you can decide which command to use: 
@@ -82,11 +84,14 @@ def get_raw_command(query: str, chat_state: ChatState):
         output: {{'answer': 'This is a very specific question so I will do targeted research to find the answer on the web. I won't ingest the results in any of your collections.', 'command': '/research heatseek 3 here's a small, grayish-brown bird outside my window that is round with a little crest on its head. It is very lively and cute. It is about 4 inches tall. What kind of bird could it be?'}}
 
         query: 'What can I do to help with conservation efforts for Bay Area birds? I asked before but I want more in-depth results.'
-        output: {{'answer': 'I will do deeper research on this topic', 'command': '/research deeper 3'}}
-        (Note to LLM: Please don't use /research deeper if the current research query does not exactly match this one in meaning)
+        output: {{'answer': 'I will do deeper research on this topic', 'command': '/research iterate 3'}}
+        (Note to LLM: Please don't use /research iterate if the current research query does not exactly match this one in meaning)
 
         query: 'I want to summarize and add this website to my collection: https://www.inaturalist.org/guides/732'
         output: {{'answer': 'I'll create a report for this URL and add it into your collection.", 'command': '/summarize https://www.inaturalist.org/guides/732'}}
+
+        query: 'What is the happiness index for Norway?'
+        output: {{'answer': 'I will do targeted research and find the exact answer for this question.', 'command': '/research heatseek What is the happiness index for Norway?'}}
 
         query: 'What's it like being an AI?'
         output: {{'answer': 'Hmm, let me think about that.', 'command': '/chat What's it like being an AI?'}}
@@ -101,12 +106,12 @@ def get_raw_command(query: str, chat_state: ChatState):
     # Get details on the current collection 
     coll_summary_query = "/kb Can you summarize in one sentence the contents of the current collection?"
     parsed_summary_query = parse_query(coll_summary_query)
-    chat_state.update(parsed_query=parsed_summary_query, callbacks=None)
+    chat_state.update(parsed_query=parsed_summary_query)
     details = get_bot_response(chat_state)
 
     # Check if query already starts with a command string, if so return as is
-    if any(query.startswith(command + "") for command in command_ids):
-        return query
+    if any(chat_state.message.startswith(command + "") for command in command_ids):
+        return chat_state.message
     # If not formatted as a command, prompt LLM to generate and return a JSON-formatted command
     else:
         chain = get_prompt_llm_chain(

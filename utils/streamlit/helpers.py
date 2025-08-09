@@ -51,7 +51,7 @@ If you are done uploading, you can rename it:
 """
 
 mode_option_to_prefix = {
-    "/kb (main mode)": (
+    "/kb": (
         "",  # TODO: this presupposes that DEFAULT_MODE is /kb
         "Chat using the current collection as a knowledge base.",
     ),
@@ -98,6 +98,10 @@ mode_option_to_prefix = {
     "/chat": (
         "/ch ",
         "Regular chat, without retrieving information from the current collection.",
+    ),
+    "/auto (main mode)": (
+        "/au ",
+        "Default mode, chat in natural language and a mode will be chosen for your query.",
     ),
 }
 mode_options = list(mode_option_to_prefix.keys())
@@ -149,6 +153,7 @@ status_config = {
     ChatMode.RESEARCH_COMMAND_ID: research_status_config,
     ChatMode.INGEST_COMMAND_ID: ingest_status_config,
     ChatMode.SUMMARIZE_COMMAND_ID: summarize_status_config,
+    ChatMode.DEFAULT_CHAT_COMMAND_ID: chat_with_docs_status_config,
 }
 
 STAND_BY_FOR_INGESTION_MESSAGE = (

@@ -75,6 +75,21 @@ class CallbackHandlerDDGConsole(BaseCallbackHandler):
     def on_retry(self, *args, **kwargs) -> None:
         print(f"ON_RETRY: \nargs = {args}\nkwargs = {kwargs}")
 
+class NoOpCallbackHandler(BaseCallbackHandler):
+    def on_llm_start(
+        self, serialized: dict[str, Any], prompts: list[str], **kwargs: Any
+    ) -> None:
+        pass
+
+    def on_llm_new_token(self, token, **kwargs) -> None:
+        pass
+
+    def on_llm_end(self, *args, **kwargs) -> None:
+        pass
+
+    def on_retry(self, *args, **kwargs) -> None:
+        pass
+
 
 def get_llm_with_callbacks(
     settings: BotSettings, 

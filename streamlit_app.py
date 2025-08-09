@@ -95,7 +95,7 @@ with st.sidebar:
         ss.default_mode = st.selectbox(
             "Command used if none provided",
             mode_options,
-            index=0,
+            index=12,
             # label_visibility="collapsed",
         )
         cmd_prefix, cmd_prefix_explainer = mode_option_to_prefix[ss.default_mode]
@@ -359,26 +359,34 @@ if files:
 # Get and display collection name
 coll_name_full = chat_state.vectorstore.name
 coll_name_as_shown = get_user_facing_collection_name(chat_state.user_id, coll_name_full)
+
+chat_input_text: str = limit_num_characters(coll_name_as_shown, 35) + "/"
+
 # Get text input by user
-chat_input_text: str = f"[{ss.default_mode}] " if cmd_prefix else ""
-chat_input_text = limit_num_characters(chat_input_text + coll_name_as_shown, 35) + "/"
-full_query = st.chat_input(chat_input_text)
+full_query: str | None = st.chat_input(chat_input_text)
 if full_query:
+    # display user message
+    with st.chat_message("user", avatar=ss.user_avatar):
+        # NOTE: should use a different avatar for auto-instructions
+        st.markdown(fix_markdown(full_query))
+
     # Send query to LLM to select appropriate command, then display the response and continue with the command
+    try:
+        llm_raw_command: dict[str, str] = get_raw_command(full_query, chat_state)
+        response = llm_raw_command['answer']
+        # Check if this is the first time we got a response from the LLM
+        if not ss.llm_api_key_ok_status and not ss.openrouter_api_key_ok_status:
+            # Set a temp value to trigger a rerun to collapse the API key fields
+            ss.llm_api_key_ok_status = "RERUN_PLEASE"
+            ss.openrouter_api_key_ok_status = "RERUN_PLEASE"
+    except KeyError:
+        status = None    
+
+    # display LLM response
     with st.chat_message("assistant", avatar=ss.bot_avatar):
-        try:
-            llm_raw_command: dict[str, str] = get_raw_command(full_query, chat_state)
-            response = llm_raw_command['answer']
-            st.markdown(fix_markdown(response))
-            # Check if this is the first time we got a response from the LLM
-            if not ss.llm_api_key_ok_status and not ss.openrouter_api_key_ok_status:
-                # Set a temp value to trigger a rerun to collapse the API key fields
-                ss.llm_api_key_ok_status = "RERUN_PLEASE"
-                ss.openrouter_api_key_ok_status = "RERUN_PLEASE"
-        except KeyError:
-            status = None    
+        st.markdown(fix_markdown(response))
+    
     full_query = llm_raw_command['command']
-    print(full_query)
 else:
     # If no message from the user, check if we should run an initial test query
     if not chat_state.chat_history_all and INITIAL_TEST_QUERY_STREAMLIT:
@@ -431,23 +439,27 @@ with st.chat_message("assistant", avatar=ss.bot_avatar):
     # Prepare container and callback handler for showing streaming response
     message_placeholder = st.empty()
 
-    # Commenting Callback handling logic for now as it is not working
-    # cb = CallbackHandlerDDGStreamlit(
-    #     message_placeholder,
-    #     end_str=STAND_BY_FOR_INGESTION_MESSAGE
-    #     if parsed_query.is_ingestion_needed()
-    #     else "",
-    # )
+    cb = CallbackHandlerDDGStreamlit(
+        message_placeholder,
+        end_str=STAND_BY_FOR_INGESTION_MESSAGE
+        if parsed_query.is_ingestion_needed()
+        else "",
+    )
 
-    # chat_state.callbacks[1] = cb
-    # chat_state.add_to_output = lambda x: cb.on_llm_new_token(x, run_id=None)
+    chat_state.callbacks[1] = cb
+    chat_state.add_to_output = lambda x: cb.on_llm_new_token(x, run_id=None)
 
     try:
-        llm_response: dict[str, str] | None = get_bot_response(chat_state)
-        answer = llm_response['answer']
+        llm_response = get_bot_response(chat_state)
+        answer = llm_response["answer"]
+
+        # Check if this is the first time we got a response from the LLM
+        if not ss.llm_api_key_ok_status and chat_mode in chat_modes_needing_llm:
+            # Set a temp value to trigger a rerun to collapse the API key field
+            ss.llm_api_key_ok_status = "RERUN_PLEASE"
 
         # Display non-streaming responses slowly (in particular avoids chat prompt flicker)
-        if chat_mode not in chat_modes_needing_llm or "needs_print" in llm_response:
+        if chat_mode not in chat_modes_needing_llm or "needs_print" in response:
             write_slowly(message_placeholder, answer)
 
         # Display sources if present
@@ -463,15 +475,13 @@ with st.chat_message("assistant", avatar=ss.bot_avatar):
             )
             status.write(llm_response.get("status.body", default_status["complete.body"]))
 
-        # Add the response to the chat history
-        if full_query:
-            chat_state.chat_history.append((full_query, answer))
+        # Add the llm_response to the chat history
+        chat_state.chat_history.append((full_query, answer))
 
         # If the response contains instructions to auto-run a query, record it
         if new_parsed_query := llm_response.get("new_parsed_query"):
             chat_state.scheduled_queries.add_to_front(new_parsed_query)
     except Exception as e:
-        print(traceback.format_exc())
         # Add the error message to the likely incomplete response
         err_msg = format_exception(e)
         answer = f"Apologies, an error has occurred:\n```\n{err_msg}\n```"

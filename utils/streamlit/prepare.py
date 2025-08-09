@@ -2,7 +2,7 @@ import os
 
 import streamlit as st
 
-from components.llm import CallbackHandlerDDGConsole
+from components.llm import CallbackHandlerDDGConsole, NoOpCallbackHandler
 from docdocgo import do_intro_tasks
 from utils.chat_state import ChatState
 from utils.prepare import OPENAI_API_KEY, DEFAULT_OPENROUTER_API_KEY, DUMMY_OPENROUTER_API_KEY_PLACEHOLDER, MODEL_NAME
@@ -43,7 +43,7 @@ def prepare_app():
         vectorstore=vectorstore,
         callbacks=[
             CallbackHandlerDDGConsole(),
-            "placeholder for CallbackHandlerDDGStreamlit",
+            NoOpCallbackHandler()
         ],
         openrouter_api_key=DEFAULT_OPENROUTER_API_KEY,
         openai_api_key=OPENAI_API_KEY,
@@ -72,4 +72,4 @@ def prepare_app():
         "/research heatseek Code for row of buttons Streamlit, /research What are the biggest AI news this month?, /help How does infinite research work?",
     )
     st.session_state.sample_queries = [q.strip() for q in SAMPLE_QUERIES.split(",")]
-    st.session_state.default_mode = mode_options[0]
+    st.session_state.default_mode = mode_options[12]
