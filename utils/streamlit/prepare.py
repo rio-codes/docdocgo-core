@@ -5,7 +5,7 @@ import streamlit as st
 from components.llm import CallbackHandlerDDGConsole, NoOpCallbackHandler
 from docdocgo import do_intro_tasks
 from utils.chat_state import ChatState
-from utils.prepare import OPENAI_API_KEY, DEFAULT_OPENROUTER_API_KEY, DUMMY_OPENROUTER_API_KEY_PLACEHOLDER, MODEL_NAME
+from utils.prepare import DEFAULT_OPENAI_API_KEY, DEFAULT_OPENROUTER_API_KEY, DUMMY_OPENAI_API_KEY_PLACEHOLDER, DUMMY_OPENROUTER_API_KEY_PLACEHOLDER, MODEL_NAME
 from utils.streamlit.fix_event_loop import remove_tornado_fix
 from utils.type_utils import OperationMode
 from utils.streamlit.helpers import mode_options
@@ -29,7 +29,7 @@ def prepare_app():
     st.session_state.access_code = st.query_params.get("access_code")
     try:
         remove_tornado_fix()
-        vectorstore = do_intro_tasks(openai_api_key=OPENAI_API_KEY)
+        vectorstore = do_intro_tasks(openai_api_key=DEFAULT_OPENAI_API_KEY)
     except Exception as e:
         st.error(
             "Apologies, I could not load the vector database. This "
@@ -46,13 +46,15 @@ def prepare_app():
             NoOpCallbackHandler()
         ],
         openrouter_api_key=DEFAULT_OPENROUTER_API_KEY,
-        openai_api_key=OPENAI_API_KEY,
+        openai_api_key=DEFAULT_OPENAI_API_KEY,
     )
 
     st.session_state.prev_supplied_openai_api_key = None
     st.session_state.prev_supplied_openrouter_api_key = None
-    st.session_state.openai_api_key = OPENAI_API_KEY
+    st.session_state.openai_api_key = DEFAULT_OPENAI_API_KEY
     st.session_state.default_openrouter_api_key = DEFAULT_OPENROUTER_API_KEY
+    if st.session_state.openai_api_key == DUMMY_OPENAI_API_KEY_PLACEHOLDER:
+        st.session_state.default_openrouter_api_key = ""
     if st.session_state.default_openrouter_api_key == DUMMY_OPENROUTER_API_KEY_PLACEHOLDER:
         st.session_state.default_openrouter_api_key = ""
 
