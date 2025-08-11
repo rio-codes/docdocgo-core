@@ -336,8 +336,11 @@ def get_initial_researcher_response(chat_state: ChatState) -> Props:
 def prepare_next_iteration(chat_state: ChatState) -> dict[str, ParsedQuery]:
     # NOTE: just mutate chat_state instead?
     research_params = chat_state.parsed_query.research_params
-    if research_params.num_iterations_left < 2:
-        return {}
+    if research_params:
+        if research_params.num_iterations_left < 2:
+            return {}
+    else:
+        research_params.num_iterations_left = 1
     new_parsed_query = chat_state.parsed_query.model_copy(deep=True)
     new_parsed_query.research_params.num_iterations_left -= 1
     new_parsed_query.message = (
@@ -1057,7 +1060,10 @@ def get_researcher_response_single_iter(chat_state: ChatState) -> Props:
 
 def get_researcher_response(chat_state: ChatState) -> Props:
     research_params = chat_state.parsed_query.research_params
-    num_iterations_left = research_params.num_iterations_left
+    if research_params:
+        num_iterations_left = research_params.num_iterations_left
+    else:
+        num_iterations_left = 1
 
     # Due to Streamlit reloading quirks, we need to do this dance:
     research_params.task_type = ResearchCommand(research_params.task_type.value)

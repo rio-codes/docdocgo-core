@@ -27,7 +27,7 @@ from utils.prepare import (
     BYPASS_SETTINGS_RESTRICTIONS,
     BYPASS_SETTINGS_RESTRICTIONS_PASSWORD,
     DEFAULT_COLLECTION_NAME,
-    OPENAI_API_KEY,
+    DEFAULT_OPENAI_API_KEY,
     DEFAULT_OPENROUTER_API_KEY,
     INCLUDE_ERROR_IN_USER_FACING_ERROR_MSG,
     MAX_UPLOAD_BYTES,
@@ -144,17 +144,27 @@ async def handle_chat_or_ingest_request(
         if (
             BYPASS_SETTINGS_RESTRICTIONS_PASSWORD
             and data.openrouter_api_key
+            and data.openai_api_key
             and data.openrouter_api_key.strip() == BYPASS_SETTINGS_RESTRICTIONS_PASSWORD
+            and data.openai_api_key.strip() == BYPASS_SETTINGS_RESTRICTIONS_PASSWORD
             and DEFAULT_OPENROUTER_API_KEY  # only do this if the default key is configured
+            and DEFAULT_OPENAI_API_KEY  # only do this if the default key is configured
         ):
             data.openrouter_api_key = DEFAULT_OPENROUTER_API_KEY
-        # Same story if no key is sent but BYPASS_SETTINGS_RESTRICTIONS is set
-        elif not data.openrouter_api_key and BYPASS_SETTINGS_RESTRICTIONS:
-            data.openrouter_api_key = DEFAULT_OPENROUTER_API_KEY
+            data.openai_api_key = DEFAULT_OPENAI_API_KEY
 
-        # If no key is specified, use the default key (but set is_community_key to True)
+        # Same story if no key is sent but BYPASS_SETTINGS_RESTRICTIONS is set
+        if BYPASS_SETTINGS_RESTRICTIONS:
+            if not data.openrouter_api_key:
+                data.openrouter_api_key = DEFAULT_OPENROUTER_API_KEY
+            if not data.openai_api_key:
+                data.openai_api_key = DEFAULT_OPENAI_API_KEY
+
+        # If no keys are specified, use the default keys (but set is_community_key and is_or_community_key to True)
+        openai_api_key: str = data.openai_api_key or DEFAULT_OPENAI_API_KEY
+        is_community_key = not data.openai_api_key
         openrouter_api_key: str = data.openrouter_api_key or DEFAULT_OPENROUTER_API_KEY
-        is_community_key = not data.openrouter_api_key
+        is_or_community_key = not data.openrouter_api_key
 
         # User id is determined from the OpenRouter API key (or None if community key)
         user_id: str | None = get_short_user_id(data.openrouter_api_key)
@@ -173,8 +183,7 @@ async def handle_chat_or_ingest_request(
             return ChatResponseData(content="Invalid API key.")
 
         # Validate the provided bot settings
-
-        if data.bot_settings and is_community_key:
+        if data.bot_settings and is_or_community_key:
             # Enforce default settings for community key
             if data.bot_settings != BotSettings():
                 return ChatResponseData(

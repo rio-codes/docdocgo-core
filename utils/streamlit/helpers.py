@@ -302,3 +302,32 @@ def show_downloader(
             key=st.session_state.downloader_form_key,
         )
     return is_downloaded
+
+def sanitize_markdown_links(text: str) -> str:
+    """
+    Finds all Markdown links in the text and neutralizes any that are not valid,
+    absolute HTTP/HTTPS URLs, by turning them into plain text or code blocks.
+    
+    Example:
+    - "[Click me](https://example.com)" -> remains unchanged
+    - "[Click me](?collection=xyz)" -> becomes "[Click me](`?collection=xyz`)"
+    - "[Click me](/local/path)" -> becomes "[Click me](`/local/path`)"
+    """
+    # Regex to find all markdown links: [text](url)
+    markdown_link_regex = r"\[([^\]]+)\]\(([^)]+)\)"
+
+    def replacer(match):
+        link_text = match.group(1)
+        url = match.group(2)
+        
+        # Check if the URL is a valid, absolute HTTP/HTTPS URL
+        if url.startswith("http://") or url.startswith("https://"):
+            # It's a valid link, so return it as is
+            return f"[{link_text}]({url})"
+        else:
+            # It's a relative path or potentially malicious link. Neutralize it.
+            # We'll display it as text with the 'url' part in a code block.
+            # This prevents Streamlit from rendering it as a clickable link.
+            return f"{link_text} (source: `{url}`)"
+
+    return re.sub(markdown_link_regex, replacer, text)

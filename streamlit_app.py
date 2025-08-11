@@ -43,6 +43,7 @@ from utils.streamlit.helpers import (
     just_chat_status_config,
     mode_option_to_prefix,
     mode_options,
+    sanitize_markdown_links,
     show_downloader,
     show_sources,
     show_uploader,
@@ -105,7 +106,6 @@ with st.sidebar:
         supplied_openai_api_key = st.text_input(
             "OpenAI API Key",
             label_visibility="collapsed",
-            placeholder="",
             key="openai_api_key",
             type="password",
         )
@@ -136,10 +136,10 @@ with st.sidebar:
             is_community_key = False
 
         # In case there's no community key available, set is_community_key to False
-        if not openai_api_key_to_use:
-            is_community_key = False
-            st.caption("To use this app, you'll need an OpenAI API key. "
-            "[Get an OpenAI API key](https://platform.openai.com/account/api-keys)"
+        if not is_community_key and not openai_api_key_to_use:
+            st.caption(
+                "To use this app, you'll need an OpenAI API key. "
+                "[Get an OpenAI API key](https://platform.openai.com/account/api-keys)"
             )
             chat_state.user_id = None
         elif is_community_key:
@@ -153,9 +153,13 @@ with st.sidebar:
         else:
             # User is using their own key (or has unlocked the default key)
             chat_state.user_id = get_short_user_id(openai_api_key_to_use)
+            st.caption(
+                "Using your own OpenAI API key. Your collections are private."
+            )
             # TODO: use full api key as user id (but show only the short version)
 
         chat_state.is_community_key = is_community_key  # in case it changed
+        chat_state.openai_api_key = openai_api_key_to_use # in case it changed
 
         # If init load or user key field changed, reset user/vectorstore as needed
         if supplied_openai_api_key != ss.prev_supplied_openai_api_key:
@@ -371,22 +375,20 @@ if full_query:
         st.markdown(fix_markdown(full_query))
 
     # Send query to LLM to select appropriate command, then display the response and continue with the command
-    try:
-        llm_raw_command: dict[str, str] = get_raw_command(full_query, chat_state)
-        response = llm_raw_command['answer']
-        # Check if this is the first time we got a response from the LLM
-        if not ss.llm_api_key_ok_status and not ss.openrouter_api_key_ok_status:
-            # Set a temp value to trigger a rerun to collapse the API key fields
-            ss.llm_api_key_ok_status = "RERUN_PLEASE"
-            ss.openrouter_api_key_ok_status = "RERUN_PLEASE"
-    except KeyError:
-        status = None    
+    llm_raw_command = {}
+    llm_raw_command = get_raw_command(full_query, chat_state)
+    answer = llm_raw_command['answer']
+    full_query = llm_raw_command['command']
+
+    # Check if this is the first time we got a response from the LLM
+    if not ss.llm_api_key_ok_status and not ss.openrouter_api_key_ok_status:
+        # Set a temp value to trigger a rerun to collapse the API key fields
+        ss.llm_api_key_ok_status = "RERUN_PLEASE"
+        ss.openrouter_api_key_ok_status = "RERUN_PLEASE"
 
     # display LLM response
     with st.chat_message("assistant", avatar=ss.bot_avatar):
-        st.markdown(fix_markdown(response))
-    
-    full_query = llm_raw_command['command']
+        st.markdown(fix_markdown(answer))
 else:
     # If no message from the user, check if we should run an initial test query
     if not chat_state.chat_history_all and INITIAL_TEST_QUERY_STREAMLIT:
@@ -452,16 +454,21 @@ with st.chat_message("assistant", avatar=ss.bot_avatar):
     try:
         llm_response = get_bot_response(chat_state)
         answer = llm_response["answer"]
+        answer = sanitize_markdown_links(answer)
+    except Exception as e:
+        err_msg = format_exception(e)
+        answer = f"We're sorry, an error has occurred:\n```\n{err_msg}\n```"
 
-        # Check if this is the first time we got a response from the LLM
-        if not ss.llm_api_key_ok_status and chat_mode in chat_modes_needing_llm:
-            # Set a temp value to trigger a rerun to collapse the API key field
-            ss.llm_api_key_ok_status = "RERUN_PLEASE"
+    # Check if this is the first time we got a response from the LLM
+    if not ss.llm_api_key_ok_status and chat_mode in chat_modes_needing_llm:
+        # Set a temp value to trigger a rerun to collapse the API key field
+        ss.llm_api_key_ok_status = "RERUN_PLEASE"
 
-        # Display non-streaming responses slowly (in particular avoids chat prompt flicker)
-        if chat_mode not in chat_modes_needing_llm or "needs_print" in response:
-            write_slowly(message_placeholder, answer)
+    # Display non-streaming responses slowly (in particular avoids chat prompt flicker)
+    if chat_mode not in chat_modes_needing_llm or "needs_print" in llm_response:
+        write_slowly(message_placeholder, answer)
 
+    try:
         # Display sources if present
         sources = get_source_links(llm_response) or None  # Cheaper to store None than []
         show_sources(sources)
@@ -479,8 +486,8 @@ with st.chat_message("assistant", avatar=ss.bot_avatar):
         chat_state.chat_history.append((full_query, answer))
 
         # If the response contains instructions to auto-run a query, record it
-        if new_parsed_query := llm_response.get("new_parsed_query"):
-            chat_state.scheduled_queries.add_to_front(new_parsed_query)
+        #if new_parsed_query := llm_response.get("new_parsed_query"):
+        #    chat_state.scheduled_queries.add_to_front(new_parsed_query)
     except Exception as e:
         # Add the error message to the likely incomplete response
         err_msg = format_exception(e)

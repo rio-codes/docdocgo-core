@@ -31,7 +31,7 @@ def get_logger(logger_name: str = DEFAULT_LOGGER_NAME):
 
 # Set up the environment variables
 DEFAULT_OPENROUTER_API_KEY = os.getenv("DEFAULT_OPENROUTER_API_KEY")
-OPENAI_API_KEY = os.getenv("DEFAULT_OPENAI_API_KEY")
+DEFAULT_OPENAI_API_KEY = os.getenv("DEFAULT_OPENAI_API_KEY")
 IS_AZURE = bool(os.getenv("OPENAI_API_BASE") or os.getenv("AZURE_OPENAI_API_KEY"))
 EMBEDDINGS_DEPLOYMENT_NAME = os.getenv("EMBEDDINGS_DEPLOYMENT_NAME")
 CHAT_DEPLOYMENT_NAME = os.getenv("CHAT_DEPLOYMENT_NAME")
@@ -58,7 +58,6 @@ TEMPERATURE = float(os.getenv("TEMPERATURE", 0.3))
 
 allowed_models_str = os.getenv("ALLOWED_MODELS", "")
 if allowed_models_str == "all":
-    print("All models allowed")
     ALLOWED_MODELS: list[str]  = []
 else:
     ALLOWED_MODELS = [model.strip() for model in ALLOWED_MODELS]
@@ -90,6 +89,7 @@ INITIAL_TEST_QUERY_STREAMLIT = os.getenv("INITIAL_QUERY_STREAMLIT")
 
 # Check that the necessary environment variables are set
 DUMMY_OPENROUTER_API_KEY_PLACEHOLDER = "DUMMY NON-EMPTY VALUE"
+DUMMY_OPENAI_API_KEY_PLACEHOLDER = "DUMMY NON-EMPTY VALUE"
 
 if IS_AZURE and not (
     EMBEDDINGS_DEPLOYMENT_NAME

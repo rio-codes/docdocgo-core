@@ -1,9 +1,13 @@
+import streamlit as st
 from typing import Any, ClassVar
 
 from chromadb.api.types import Where, WhereDocument
 from langchain_core.documents import Document
 from pydantic import Field
 
+from agents.command_chooser import get_raw_command
+from utils.query_parsing import parse_query
+from utils.chat_state import ChatState
 from utils.helpers import DELIMITER, lin_interpolate
 from utils.lang_utils import expand_chunks
 from utils.prepare import CONTEXT_LENGTH, EMBEDDINGS_MODEL_NAME
@@ -65,7 +69,7 @@ class ChromaDDGRetriever(VectorStoreRetriever):
         filter: Where | None = None,  # For metadata (Langchain naming convention)
         where_document: WhereDocument | None = None,  # Filter by text in document
         **kwargs: Any,  # For additional search params
-    ) -> list[Document]:
+    ) -> list[Document] | None:
         # Combine global search kwargs with per-query search params passed here
         search_kwargs = self.search_kwargs | kwargs
         if filter is not None:
@@ -144,6 +148,11 @@ class ChromaDDGRetriever(VectorStoreRetriever):
                     f"Similarities from {self.similarities[-1]:.2f} to {self.similarities[0]:.2f}"
                 )
             print(DELIMITER)
+        
+        # If no chunks were returned, set chunks empty
+        if not chunks:
+            chunks = []
+            return chunks
 
         # Get the parent documents for the chunks
         try:
@@ -155,26 +164,33 @@ class ChromaDDGRetriever(VectorStoreRetriever):
             # If it's an older collection, without parent docs, just return the chunks
             return chunks
         unique_parent_ids = list(set(parent_ids))
-        rsp = self.vectorstore.collection.get(unique_parent_ids)
-
-        parent_docs_by_id = {
-            id: Document(page_content=text, metadata=metadata)
-            for id, text, metadata in zip(
-                rsp["ids"], rsp["documents"], rsp["metadatas"]
+        if unique_parent_ids:
+            rsp = self.vectorstore.collection.get(unique_parent_ids)
+            parent_docs_by_id = {
+                id: Document(page_content=text, metadata=metadata)
+                for id, text, metadata in zip(
+                    rsp["ids"], rsp["documents"], rsp["metadatas"]
+                )
+            }
+            # Expand chunks using the parent docs
+            max_total_tokens = min(
+                self.max_total_tokens, self.max_average_tokens_per_chunk * len(chunks)
             )
-        }
-
-        # Expand chunks using the parent docs
-        max_total_tokens = min(
-            self.max_total_tokens, self.max_average_tokens_per_chunk * len(chunks)
-        )
-        expanded_chunks = expand_chunks(
-            chunks,
-            parent_docs_by_id,
-            max_total_tokens,
-            llm_for_token_counting=self.llm_for_token_counting,
-        )
-        return expanded_chunks
+            expanded_chunks = expand_chunks(
+                chunks,
+                parent_docs_by_id,
+                max_total_tokens,
+                llm_for_token_counting=self.llm_for_token_counting,
+            )
+            return expanded_chunks
+        else:
+            no_documents_response="No documents were returned for that query."
+            parsed_summary_query = parse_query(no_documents_response)
+            ss = st.session_state
+            chat_state: ChatState = ss.chat_state
+            raw_response = get_raw_command(no_documents_response, chat_state)
+            chat_state.add_to_output(raw_response['answer'])
+            return []
 
     async def _aget_relevant_documents(
         self, query: str, *, run_manager: AsyncCallbackManagerForRetrieverRun

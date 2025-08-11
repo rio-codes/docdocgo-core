@@ -10,6 +10,7 @@ from agents.exporter import get_exporter_response
 from agents.ingester_summarizer import get_ingester_summarizer_response
 from agents.researcher import get_researcher_response, get_websearcher_response
 from agents.share_manager import handle_share_command
+from agents.command_chooser import get_raw_command
 from components.chat_with_docs_chain import ChatWithDocsChain
 from components.chroma_ddg import ChromaDDG, get_vectorstore_using_openai_api_key
 from components.chroma_ddg_retriever import ChromaDDGRetriever
@@ -26,7 +27,7 @@ from utils.helpers import (
 from utils.lang_utils import pairwise_chat_history_to_msg_list
 
 # Load environment variables
-from utils.prepare import DEFAULT_COLLECTION_NAME, OPENAI_API_KEY, DEFAULT_OPENROUTER_API_KEY, get_logger
+from utils.prepare import DEFAULT_COLLECTION_NAME, DEFAULT_OPENAI_API_KEY, DEFAULT_OPENROUTER_API_KEY, get_logger
 from utils.prompts import (
     CHAT_WITH_DOCS_PROMPT,
     CONDENSE_QUESTION_PROMPT,
@@ -47,7 +48,8 @@ def get_bot_response(chat_state: ChatState):
         chat_state.chat_mode.value
     )  # use value due to Streamlit code reloading
     if chat_mode_val == ChatMode.DEFAULT_CHAT_COMMAND_ID.value:  # /auto command
-        chat_chain = get_docs_chat_chain(chat_state)
+        response = get_raw_command(chat_state.message, chat_state)
+        return {"answer": response}
     elif chat_mode_val == ChatMode.CHAT_WITH_DOCS_COMMAND_ID.value:  # /kb command
         chat_chain = get_docs_chat_chain(chat_state)
     elif chat_mode_val == ChatMode.DETAILS_COMMAND_ID.value:  # /details command
@@ -229,7 +231,7 @@ def do_intro_tasks(
     # Load and save default vector store
     try:
         vectorstore = default_vectorstore = get_vectorstore_using_openai_api_key(
-            DEFAULT_COLLECTION_NAME, openai_api_key=OPENAI_API_KEY
+            DEFAULT_COLLECTION_NAME, openai_api_key=DEFAULT_OPENAI_API_KEY
         )
     except Exception as e:
         logger.error(
@@ -256,7 +258,7 @@ def do_intro_tasks(
 
 
 if __name__ == "__main__":
-    vectorstore = do_intro_tasks(OPENAI_API_KEY)
+    vectorstore = do_intro_tasks(DEFAULT_OPENAI_API_KEY)
     TWO_BOTS = False  # os.getenv("TWO_BOTS", False) # disabled for now
 
     # Start chat
@@ -292,7 +294,7 @@ if __name__ == "__main__":
                     parsed_query=parsed_query,
                     chat_history=chat_history,
                     vectorstore=vectorstore,  # callbacks and bot_settings can be default here
-                    openai_api_key=OPENAI_API_KEY,
+                    openai_api_key=DEFAULT_OPENAI_API_KEY,
                     openrouter_api_key=DEFAULT_OPENROUTER_API_KEY,
                     user_id=None,  # would be set to None by default but just to be explicit
                 )
