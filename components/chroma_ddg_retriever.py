@@ -151,8 +151,7 @@ class ChromaDDGRetriever(VectorStoreRetriever):
         
         # If no chunks were returned, set chunks empty
         if not chunks:
-            chunks = []
-            return chunks
+            return []
 
         # Get the parent documents for the chunks
         try:
