@@ -381,9 +381,8 @@ if full_query:
     full_query = llm_raw_command['command']
 
     # Check if this is the first time we got a response from the LLM
-    if not ss.llm_api_key_ok_status and not ss.openrouter_api_key_ok_status:
+    if not ss.openrouter_api_key_ok_status:
         # Set a temp value to trigger a rerun to collapse the API key fields
-        ss.llm_api_key_ok_status = "RERUN_PLEASE"
         ss.openrouter_api_key_ok_status = "RERUN_PLEASE"
 
     # display LLM response
@@ -458,11 +457,6 @@ with st.chat_message("assistant", avatar=ss.bot_avatar):
     except Exception as e:
         err_msg = format_exception(e)
         answer = f"We're sorry, an error has occurred:\n```\n{err_msg}\n```"
-
-    # Check if this is the first time we got a response from the LLM
-    if not ss.llm_api_key_ok_status and chat_mode in chat_modes_needing_llm:
-        # Set a temp value to trigger a rerun to collapse the API key field
-        ss.llm_api_key_ok_status = "RERUN_PLEASE"
 
     # Display non-streaming responses slowly (in particular avoids chat prompt flicker)
     if chat_mode not in chat_modes_needing_llm or "needs_print" in llm_response:
@@ -569,13 +563,9 @@ if coll_name_full != chat_state.vectorstore.name:
         else {}
     )
 
-# If this was the first LLM response, rerun to collapse the OpenRouter API key field
+# If this was the first LLM response, rerun to collapse the OpenRouter and OpenAI API key fields
 if ss.openrouter_api_key_ok_status == "RERUN_PLEASE":
     ss.openrouter_api_key_ok_status = True
-    st.rerun()
-
-# If this was the first LLM response, rerun to collapse the OpenAI API key field
-if ss.llm_api_key_ok_status == "RERUN_PLEASE":
     ss.llm_api_key_ok_status = True
     st.rerun()
 
