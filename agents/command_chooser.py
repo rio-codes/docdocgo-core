@@ -101,7 +101,8 @@ prompt ="""
 
 def get_raw_command(query: str, chat_state: ChatState):
     prompt_template = PromptTemplate.from_template(prompt)
-    coll_summary_query = {}
+    if not coll_summary_query:
+        coll_summary_query = {}
     
     # Get details on the current collection 
     print("Getting details on", chat_state.collection_name)
