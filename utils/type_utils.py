@@ -34,7 +34,7 @@ class ChatMode(Enum):
     EXPORT_COMMAND_ID = 10
     SUMMARIZE_COMMAND_ID = 11
     SHARE_COMMAND_ID = 12
-    DEFAULT_CHAT_COMMAND_ID = 13
+    AUTO_COMMAND_ID = 13
 
 
 chat_modes_needing_llm = {
@@ -46,7 +46,7 @@ chat_modes_needing_llm = {
     ChatMode.CHAT_WITH_DOCS_COMMAND_ID,
     ChatMode.SUMMARIZE_COMMAND_ID,
     ChatMode.HELP_COMMAND_ID,
-    ChatMode.DEFAULT_CHAT_COMMAND_ID
+    ChatMode.AUTO_COMMAND_ID
 }
 
 

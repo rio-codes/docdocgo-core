@@ -47,7 +47,7 @@ def get_bot_response(chat_state: ChatState):
     chat_mode_val = (
         chat_state.chat_mode.value
     )  # use value due to Streamlit code reloading
-    if chat_mode_val == ChatMode.DEFAULT_CHAT_COMMAND_ID.value:  # /auto command
+    if chat_mode_val == ChatMode.AUTO_COMMAND_ID.value:  # /auto command
         response = get_raw_command(chat_state.message, chat_state)
         return {"answer": response}
     elif chat_mode_val == ChatMode.CHAT_WITH_DOCS_COMMAND_ID.value:  # /kb command

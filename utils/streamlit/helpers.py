@@ -153,7 +153,7 @@ status_config = {
     ChatMode.RESEARCH_COMMAND_ID: research_status_config,
     ChatMode.INGEST_COMMAND_ID: ingest_status_config,
     ChatMode.SUMMARIZE_COMMAND_ID: summarize_status_config,
-    ChatMode.DEFAULT_CHAT_COMMAND_ID: chat_with_docs_status_config,
+    ChatMode.AUTO_COMMAND_ID: chat_with_docs_status_config,
 }
 
 STAND_BY_FOR_INGESTION_MESSAGE = (
