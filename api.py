@@ -146,7 +146,6 @@ async def handle_chat_or_ingest_request(
             and data.openrouter_api_key
             and data.openai_api_key
             and data.openrouter_api_key.strip() == BYPASS_SETTINGS_RESTRICTIONS_PASSWORD
-            and data.openai_api_key.strip() == BYPASS_SETTINGS_RESTRICTIONS_PASSWORD
             and DEFAULT_OPENROUTER_API_KEY  # only do this if the default key is configured
             and DEFAULT_OPENAI_API_KEY  # only do this if the default key is configured
         ):
