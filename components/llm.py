@@ -95,8 +95,7 @@ def get_llm_with_callbacks(
     settings: BotSettings, 
     chat_state: ChatState, 
     api_key: str | None = None, 
-    embeddings_needed=False, callbacks: 
-    CallbacksOrNone = None
+    callbacks: CallbacksOrNone = None
 ) -> BaseChatModel:
     """
     Returns a chat model instance (either AzureChatOpenAI or ChatOpenAI, depending
@@ -114,26 +113,14 @@ def get_llm_with_callbacks(
             callbacks=callbacks,
         )
     else:
-        # if chat mode requires OpenAI, create special llm using embeddings model 
-        if embeddings_needed:
-            llm = ChatOpenAI(
-                api_key=chat_state.openai_api_key,
-                model="text-embedding-3-large",
-                temperature=0,
-                timeout=LLM_REQUEST_TIMEOUT,
-                streaming=True,
-                callbacks=callbacks,
-                verbose=True,  # tmp
-            )
-        else:
-            llm = ChatOpenAI(
-                api_key=chat_state.openrouter_api_key,
-                base_url=OPENROUTER_BASE_URL,
-                model=chat_state.bot_settings.model,
-                timeout=LLM_REQUEST_TIMEOUT,
-                streaming=True,
-                callbacks=callbacks,
-                verbose=True,  # tmp
+        llm = ChatOpenAI(
+            api_key=chat_state.openrouter_api_key,
+            base_url=OPENROUTER_BASE_URL,
+            model=chat_state.bot_settings.model,
+            timeout=LLM_REQUEST_TIMEOUT,
+            streaming=True,
+            callbacks=callbacks,
+            verbose=True,  # tmp
             )
     return llm
 
@@ -142,7 +129,6 @@ def get_llm(
     chat_state: ChatState,
     api_key: str | None = None,
     callbacks: CallbacksOrNone = None,
-    embeddings_needed=False,
     stream=False,
     init_str=MAIN_BOT_PREFIX,
 ) -> BaseChatModel:
@@ -154,47 +140,37 @@ def get_llm(
     """
     if callbacks is None:
         callbacks = [CallbackHandlerDDGConsole(init_str)] if stream else []
-    return get_llm_with_callbacks(settings, chat_state, api_key, embeddings_needed, callbacks)
+    return get_llm_with_callbacks(settings, chat_state, api_key, callbacks)
 
 
 def get_prompt_llm_chain(
     prompt: ChatPromptTemplate | PromptTemplate,
     chat_state: ChatState,
     llm_settings: BotSettings,
-    embeddings_needed: bool,
     print_prompt=False,
     **kwargs,
 ):
-    # If the embeddings model is not needed, use OpenRouter
-    if not embeddings_needed:
-        if not print_prompt:
-            return (
-                prompt 
-                | get_llm(llm_settings, chat_state, chat_state.openrouter_api_key, embeddings_needed=False, **kwargs) 
-                | StrOutputParser()
-            )
-        else:
-            def print_and_return(thing):
-                if isinstance(thing, ChatPromptValue):
-                    print(f"PROMPT:\n{msg_list_chat_history_to_string(thing.messages)}")
-                else:
-                    print(f"PROMPT:\n{type(thing)}\n{thing}")
-                print(DELIMITER)
-                return thing
-            return (
-            prompt
-            | print_and_return
-            | get_llm(llm_settings, chat_state, chat_state.openrouter_api_key, embeddings_needed=False, **kwargs)
-            | StrOutputParser()
-        )
-    # If embeddings are needed, use OpenAI
-    else:
-        llm_settings.model = EMBEDDINGS_MODEL_NAME
+    if not print_prompt:
         return (
-            prompt
-            | get_llm(llm_settings, chat_state, chat_state.openai_api_key, embeddings_needed=True, **kwargs)
+            prompt 
+            | get_llm(llm_settings, chat_state, chat_state.openrouter_api_key, **kwargs) 
             | StrOutputParser()
         )
+    else:
+        def print_and_return(thing):
+            if isinstance(thing, ChatPromptValue):
+                print(f"PROMPT:\n{msg_list_chat_history_to_string(thing.messages)}")
+            else:
+                print(f"PROMPT:\n{type(thing)}\n{thing}")
+            print(DELIMITER)
+            return thing
+        return (
+        prompt
+        | print_and_return
+        | get_llm(llm_settings, chat_state, chat_state.openrouter_api_key, **kwargs)
+        | StrOutputParser()
+    )
+
 
 
 def get_llm_from_prompt_llm_chain(prompt_llm_chain):

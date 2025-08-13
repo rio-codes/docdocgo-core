@@ -86,7 +86,6 @@ class ChatState:
         access_role_by_user_id_by_coll: dict[str, dict[str, AccessRole]] | None = None,
         access_code_by_coll_by_user_id: dict[str, dict[str, str]] | None = None,
         uploaded_docs: list[Document] | None = None,
-        embeddings_needed: bool = False,
         session_data: AgentDataDict | None = None,  # currently not used (agent
         # data is stored in collection metadata)
     ) -> None:
@@ -110,7 +109,6 @@ class ChatState:
         self._access_role_by_user_id_by_coll = access_role_by_user_id_by_coll or {}
         self._access_code_by_coll_by_user_id = access_code_by_coll_by_user_id or {}
         self.uploaded_docs = uploaded_docs or []
-        self.embeddings_needed = False
         self.session_data = session_data or {}
 
     @property
@@ -412,17 +410,16 @@ class ChatState:
         logger.info(f"Returning new vectorstore for {collection_name}: {res}")
         return res
 
-    def get_prompt_llm_chain(self, prompt, *, to_user: bool, embeddings_needed: bool):
+    def get_prompt_llm_chain(self, prompt, *, to_user: bool):
         from components.llm import get_prompt_llm_chain
         return get_prompt_llm_chain(
             prompt,
             llm_settings=self.bot_settings,
             chat_state=self,
             print_prompt=False,
-            embeddings_needed=False,
             stream=to_user,
             callbacks=self.callbacks if to_user else None,
         )
 
     def get_llm_reply(self, prompt, inputs, *, to_user: bool):
-        return self.get_prompt_llm_chain(prompt, embeddings_needed=False, to_user=to_user).invoke(inputs)
+        return self.get_prompt_llm_chain(prompt, to_user=to_user).invoke(inputs)

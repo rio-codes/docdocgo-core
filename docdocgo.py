@@ -68,7 +68,6 @@ def get_bot_response(chat_state: ChatState):
             chat_state=chat_state,
             llm_settings=chat_state.bot_settings,
             callbacks=chat_state.callbacks,
-            embeddings_needed=False,
             stream=True,
         )
         answer = chat_chain.invoke(
@@ -201,7 +200,6 @@ def get_docs_chat_chain(
         llm_settings=chat_state.bot_settings,
         callbacks=chat_state.callbacks,
         print_prompt=bool(os.getenv("PRINT_QA_PROMPT")),
-        embeddings_needed=False,
         stream=True,
     )
 

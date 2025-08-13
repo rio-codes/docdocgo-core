@@ -90,7 +90,6 @@ def get_websearcher_response_quick(
         llm_settings=chat_state.bot_settings,
         chat_state=chat_state,
         callbacks=chat_state.callbacks,
-        embeddings_needed=False,
         stream=True,
     )
     answer = chain.invoke({"texts_str": texts_str, "query": message})

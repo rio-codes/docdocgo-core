@@ -131,13 +131,11 @@ def get_web_research_response_no_ingestion(
     max_tokens_final_context: int = DEFAULT_MAX_TOKENS_FINAL_CONTEXT,
 ):
     query = chat_state.message
-    chat_state.embeddings_needed = True
     # Get queries to search for using query generator prompt
     query_generator_chain = get_prompt_llm_chain(
         prompt=QUERY_GENERATOR_PROMPT,
         chat_state=chat_state,
-        llm_settings=chat_state.bot_settings,
-        embeddings_needed=False,
+        llm_settings=chat_state.bot_settings
     )
     for a, b in chat_state.__dict__.items():
         print(a, b)
@@ -254,7 +252,6 @@ def get_web_research_response_no_ingestion(
             RESEARCHER_PROMPT_INITIAL_REPORT,
             llm_settings=chat_state.bot_settings,
             chat_state=chat_state,
-            embeddings_needed=False,
             print_prompt=bool(os.getenv("PRINT_RESEARCHER_PROMPT")),
             callbacks=chat_state.callbacks,
             stream=True,
@@ -533,7 +530,6 @@ def get_iterative_researcher_response(chat_state: ChatState) -> Props:
         llm_settings=chat_state.bot_settings,
         chat_state=chat_state,
         print_prompt=bool(os.getenv("PRINT_RESEARCHER_PROMPT")),
-        embeddings_needed=False,
         callbacks=chat_state.callbacks,
         stream=True,
     ).invoke(inputs)
@@ -672,7 +668,6 @@ def get_report_combiner_response(chat_state: ChatState) -> Props:
         llm_settings=chat_state.bot_settings,
         chat_state=chat_state,
         print_prompt=bool(os.getenv("PRINT_RESEARCHER_PROMPT")),
-        embeddings_needed=False,
         callbacks=chat_state.callbacks,
         stream=True,
     ).invoke(inputs)
@@ -929,7 +924,6 @@ def auto_update_search_queries_and_links(chat_state: ChatState) -> Props:
         SEARCH_QUERIES_UPDATER_PROMPT,
         llm_settings=chat_state.bot_settings,
         chat_state=chat_state,
-        embeddings_needed=True,
         print_prompt=True,
     )
 

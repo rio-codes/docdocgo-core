@@ -108,7 +108,7 @@ def get_raw_command(query: str, chat_state: ChatState):
     if chat_state.collection_name not in coll_summary_query:
         coll_summary_query[chat_state.collection_name] = ""
         summary_prompt = "/kb Can you summarize in one sentence the contents of the current collection?"
-        summary_llm = get_llm(chat_state.bot_settings, chat_state,chat_state.openrouter_api_key,embeddings_needed=False)
+        summary_llm = get_llm(chat_state.bot_settings, chat_state,chat_state.openrouter_api_key)
         response = summary_llm.invoke(summary_prompt)
         coll_summary_query[chat_state.collection_name] = str(response)
     
@@ -120,8 +120,8 @@ def get_raw_command(query: str, chat_state: ChatState):
         chain = get_prompt_llm_chain(
                     prompt=prompt_template, 
                     chat_state=chat_state,
-                    llm_settings=chat_state.bot_settings,
-                    embeddings_needed=False)
+                    llm_settings=chat_state.bot_settings
+                    )
         json_response = chain.invoke({"details": coll_summary_query[chat_state.collection_name], "query": query}).strip("`json")
         dict_response = json.loads(json_response)
         return dict_response
