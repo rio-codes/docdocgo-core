@@ -163,33 +163,25 @@ class ChromaDDGRetriever(VectorStoreRetriever):
             # If it's an older collection, without parent docs, just return the chunks
             return chunks
         unique_parent_ids = list(set(parent_ids))
-        if unique_parent_ids:
-            rsp = self.vectorstore.collection.get(unique_parent_ids)
-            parent_docs_by_id = {
-                id: Document(page_content=text, metadata=metadata)
-                for id, text, metadata in zip(
-                    rsp["ids"], rsp["documents"], rsp["metadatas"]
-                )
-            }
-            # Expand chunks using the parent docs
-            max_total_tokens = min(
-                self.max_total_tokens, self.max_average_tokens_per_chunk * len(chunks)
+        rsp = self.vectorstore.collection.get(unique_parent_ids)
+        parent_docs_by_id = {
+            id: Document(page_content=text, metadata=metadata)
+            for id, text, metadata in zip(
+                rsp["ids"], rsp["documents"], rsp["metadatas"]
             )
-            expanded_chunks = expand_chunks(
-                chunks,
-                parent_docs_by_id,
-                max_total_tokens,
-                llm_for_token_counting=self.llm_for_token_counting,
-            )
-            return expanded_chunks
-        else:
-            no_documents_response="No documents were returned for that query."
-            parsed_summary_query = parse_query(no_documents_response)
-            ss = st.session_state
-            chat_state: ChatState = ss.chat_state
-            raw_response = get_raw_command(no_documents_response, chat_state)
-            chat_state.add_to_output(raw_response['answer'])
-            return []
+        }
+        # Expand chunks using the parent docs
+        max_total_tokens = min(
+            self.max_total_tokens, self.max_average_tokens_per_chunk * len(chunks)
+        )
+        expanded_chunks = expand_chunks(
+            chunks,
+            parent_docs_by_id,
+            max_total_tokens,
+            llm_for_token_counting=self.llm_for_token_counting,
+        )
+        return expanded_chunks
+
 
     async def _aget_relevant_documents(
         self, query: str, *, run_manager: AsyncCallbackManagerForRetrieverRun
