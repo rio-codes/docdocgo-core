@@ -375,7 +375,7 @@ def run_main_heatseek_workflow(
         source = docs[0].metadata["source"]
         logger.info(
             f"Getting response from LLM for source: {source} "
-            f"(values of part_id: {[doc.metadata.get('part_id') for doc in docs]}"
+            f"(values of part_id: {[doc.metadata.get('part_id') for doc in docs]})"
         )
 
         # Construct the context and get response from LLM
