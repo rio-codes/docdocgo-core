@@ -116,8 +116,20 @@ def get_raw_command(query: str, chat_state: ChatState):
         summary_prompt = "/kb Can you summarize in one sentence the contents of the current collection?"
         summary_llm = get_llm(chat_state.bot_settings, chat_state, chat_state.openrouter_api_key)
         logger.info("Prompting LLM to summarize collection")
-        response = summary_llm.invoke(summary_prompt)
-        coll_summary_query[chat_state.collection_name] = str(response)
+        response = summary_llm.invoke(summary_prompt) # TODO: This doesn't actually execute the
+        # /kb command, instead it just directly calls the LLM with message summary_prompt
+        # As a result, we get a "fake" summary like: "Summary of collection: The current 
+        # collection showcases a variety of captivating stories across multiple genres, 
+        # exploring complex characters and thought-provoking themes."
+
+        # TODO: We shouldn't respond to simple chat queries with "Hmm, let me think about that."
+        # If the bot doesn't need to use a tool, it should just reply right away.
+
+        # TODO: Until all UX kinks are ironed out, to merge into main we should make the default mode "/kb", so
+        # it's backwards compatible.
+
+        # TODO: "/chat hey" causes an error 
+        coll_summary_query[chat_state.collection_name] = response.content
     
     logger.info(f"Summary of collection {chat_state.collection_name}: {coll_summary_query[chat_state.collection_name]}")
 
