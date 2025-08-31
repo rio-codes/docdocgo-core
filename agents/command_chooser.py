@@ -1,13 +1,15 @@
-import json
+from langchain.prompts import PromptTemplate
 
+from components.llm import get_llm, get_prompt_llm_chain
 from utils.chat_state import ChatState
 from utils.helpers import command_ids
-from langchain.prompts import PromptTemplate
-from components.llm import get_llm, get_prompt_llm_chain
-from utils.query_parsing import parse_query
+from utils.prepare import get_logger
+from utils.strings import extract_json
 
-# Create prompt to generate commands from unstructrured user input
-prompt ="""
+logger = get_logger()
+
+# Prompt to generate commands from unstructrured user input
+prompt = """\
     # MISSION
     You are an advanced AI assistant that determines the correct DocDocGo command to use given a user's query. DocDocGo is an AI app that assists with research and uses RAG by storing research in "collections", allowing it to combine insight from all information in a collection and use an LLM to generate answers based on the entire collection. It can also answer questions about its own functioning.
 
@@ -96,35 +98,44 @@ prompt ="""
     ## YOUR ACTUAL OUTPUT
 
     query: {query}
-    output: Use the information provided above to construct the output requested, in double curly braces with an "answer" and "command" element separated by a comma, in proper JSON.
+    output: Use the information provided above to construct the output requested. Return a JSON-formatted string with the "answer" and "command" fields
     """
 
+prompt_template = PromptTemplate.from_template(prompt)
+
+coll_summary_query = {}
+
+
 def get_raw_command(query: str, chat_state: ChatState):
-    prompt_template = PromptTemplate.from_template(prompt)
-    if not coll_summary_query:
-        coll_summary_query = {}
-    
-    # Get details on the current collection 
-    print("Getting details on", chat_state.collection_name)
-    if chat_state.collection_name not in coll_summary_query:
-        coll_summary_query[chat_state.collection_name] = ""
-        summary_prompt = "/kb Can you summarize in one sentence the contents of the current collection?"
-        summary_llm = get_llm(chat_state.bot_settings, chat_state,chat_state.openrouter_api_key)
-        response = summary_llm.invoke(summary_prompt)
-        coll_summary_query[chat_state.collection_name] = str(response)
-    
-    # Check if query already starts with a command string, if so return as is
-    if any(chat_state.message.startswith(command + "") for command in command_ids):
+    # Check if query already starts with a command string, if so return as is without spending time summarizing
+    if chat_state.message.startswith(tuple(command_ids.keys())):
         return chat_state.message
-    # If not formatted as a command, prompt LLM to generate and return a JSON-formatted command
-    else:
-        chain = get_prompt_llm_chain(
-                    prompt=prompt_template, 
-                    chat_state=chat_state,
-                    llm_settings=chat_state.bot_settings
-                    )
-        json_response = chain.invoke({"details": coll_summary_query[chat_state.collection_name], "query": query}).strip("`json")
-        dict_response = json.loads(json_response)
-        return dict_response
 
+    # Get details on the current collection
+    if chat_state.collection_name not in coll_summary_query:
+        summary_prompt = "/kb Can you summarize in one sentence the contents of the current collection?"
+        summary_llm = get_llm(chat_state.bot_settings, chat_state, chat_state.openrouter_api_key)
+        logger.info("Prompting LLM to summarize collection")
+        response = summary_llm.invoke(summary_prompt) # TODO: This doesn't actually execute the
+        # /kb command, instead it just directly calls the LLM with message summary_prompt
+        # As a result, we get a "fake" summary like: "Summary of collection: The current 
+        # collection showcases a variety of captivating stories across multiple genres, 
+        # exploring complex characters and thought-provoking themes."
 
+        # TODO: We shouldn't respond to simple chat queries with "Hmm, let me think about that."
+        # If the bot doesn't need to use a tool, it should just reply right away.
+
+        # TODO: Until all UX kinks are ironed out, to merge into main we should make the default mode "/kb", so
+        # it's backwards compatible.
+
+        # TODO: "/chat hey" causes an error 
+        coll_summary_query[chat_state.collection_name] = response.content
+    
+    logger.info(f"Summary of collection {chat_state.collection_name}: {coll_summary_query[chat_state.collection_name]}")
+
+    # Prompt LLM to generate and return a JSON-formatted command
+    chain = get_prompt_llm_chain(prompt=prompt_template, chat_state=chat_state, llm_settings=chat_state.bot_settings)
+    raw_response = chain.invoke({"details": coll_summary_query[chat_state.collection_name], "query": query})
+    dict_response = extract_json(raw_response)
+    assert isinstance(dict_response, dict), "Command chooser response is not a dictionary"
+    return dict_response
