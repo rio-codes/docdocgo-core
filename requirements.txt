@@ -100,7 +100,7 @@ orjson==3.10.18
 overrides==7.7.0
 packaging==24.2
 pandas==2.3.0
-Pillow==11.2.1
+Pillow==12.1.1
 playwright==1.52.0
 posthog==5.3.0
 proto-plus==1.26.1
