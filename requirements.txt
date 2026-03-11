@@ -65,7 +65,7 @@ kubernetes==33.1.0
 langchain==0.3.25
 langchain-cli==0.0.36
 langchain-community==0.3.25
-langchain-core==0.3.65
+langchain-core==1.2.11
 langchain-openai==0.3.24
 langchain-text-splitters==0.3.8
 langcodes==3.5.0
