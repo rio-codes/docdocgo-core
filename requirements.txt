@@ -67,7 +67,7 @@ langchain-cli==0.0.36
 langchain-community==0.3.25
 langchain-core==0.3.65
 langchain-openai==0.3.24
-langchain-text-splitters==0.3.8
+langchain-text-splitters==0.3.9
 langcodes==3.5.0
 langserve==0.3.1
 langsmith==0.3.45
